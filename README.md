@@ -1,6 +1,8 @@
-# Disruption
+# Embedding disruptiveness measure (EDM)
 
-This repository contains the code for the embedding disruptiveness measure (EDM). All code used for the project will be populated here.  
+This repository contains the code for the embedding disruptiveness measure (EDM). All code used for the project will be populated here.  The main code is in the `embedding_disruptiveness` package available on pypi. 
+
+- https://pypi.org/project/embedding-disruptiveness/
 
 # Environment setup
 
