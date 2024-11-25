@@ -1,0 +1,15 @@
+pandas
+scipy
+matplotlib
+numpy
+tqdm
+statsmodels
+torch
+snakemake
+snakefmt
+ipykernel
+# faiss
+
+# local libraries
+-e ./libs/util
+-e ./libs/node2vec
