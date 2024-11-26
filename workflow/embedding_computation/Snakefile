@@ -1,0 +1,209 @@
+from os.path import join as j
+import itertools
+import os
+
+# Configuration
+configfile: "config.yaml"
+
+# Raw data
+DATA_DIR = config["data_dir"] #/data/sg/munjkim/embedding_disruptiveness/
+ORIGINAL_DIR = [j(DATA_DIR, "derived/APS"), j(DATA_DIR, "derived/WOS")]
+ORIGINAL_NETWORK = [j(i, "citation_net.npz") for i in ORIGINAL_DIR]
+ALL_NETWORKS_DIR = j(DATA_DIR, "{network_name}")
+
+
+
+# Params
+VEC_TYPES = ["in", "out"]
+RANDOM_SEED = list(range(3))
+
+
+
+ALL_NETWORKS = j(ALL_NETWORKS_DIR, "citation_net.npz")
+META_DATA = j(ALL_NETWORKS_DIR, "node_table.csv")
+
+RANDOM_NETWORK = j(ALL_NETWORKS_DIR, "random{number}/citation_net.npz")
+
+ALL_NETWORKS_NAME_APS = (
+    ["derived/APS"]
+    + ["derived/APS/random" + str(i) for i in RANDOM_SEED]
+)
+
+ALL_NETWORKS_NAME_WOS = (
+    ["derived/WOS"]
+    + ["derived/WOS/random" + str(i) for i in RANDOM_SEED]
+)
+
+
+# for calculating disruption faster
+REF_DICT = j(ALL_NETWORKS_DIR, "reference_dict.pkl")
+CIT_DICT = j(ALL_NETWORKS_DIR, "citation_dict.pkl")
+
+
+EMBEDDING_VECTORS = j(
+    DATA_DIR,
+    "{{network_name}}/{{dim}}_{{win}}_q_{{q}}_ep_{{ep}}_bs_{{bs}}_embedding/{vec_type}.npy",
+)
+
+
+DISTANCE = j(
+    ALL_NETWORKS_DIR, "{dim}_{win}_q_{q}_ep_{ep}_bs_{bs}_embedding/distance.npy"
+)
+
+
+
+DISRUPTION = j(ALL_NETWORKS_DIR, "disruption.npy")
+
+DISRUPTION_NOK= j(ALL_NETWORKS_DIR, "disruption_nok.npy")
+
+DISRUPTION_RESTRICTED = j(ALL_NETWORKS_DIR, "disruption_5.npy")
+
+DISRUPTION_MULTISTEP = j(ALL_NETWORKS_DIR, "disruption_twostep.npy")
+
+
+GROUP_MEMBERSHIP = ["year", "reference", "citation"]
+EMBEDDING_DIMENSION_APS = ["100","200","300"]
+EMBEDDING_DIMENSION_WOS = ["100"]
+WINDOW_APS = [ "1", "3","5"]
+WINDOW_WOS = [ "5"]
+
+
+wildcard_constraints:
+    number="\d+",
+
+rule all:
+    input:
+        expand(
+            DISRUPTION,
+            network_name=ALL_NETWORKS_NAME_APS ),
+            
+       # expand(
+        #    DISRUPTION,
+        #    network_name=ALL_NETWORKS_NAME_WOS),
+         expand(
+            DISRUPTION_NOK,
+            network_name=ALL_NETWORKS_NAME_APS ),
+            
+        expand(
+            DISRUPTION_MULTISTEP,
+            network_name=ALL_NETWORKS_NAME_APS ),
+        expand(
+            DISTANCE,
+            network_name=ALL_NETWORKS_NAME_APS,
+            dim=EMBEDDING_DIMENSION_APS,
+            win=WINDOW_APS,
+            q=["1"],
+            ep=[1],
+            bs=[1024],
+            ),
+
+        #expand(
+         #   DISTANCE,
+          #  network_name=ALL_NETWORKS_NAME_WOS,
+           # dim=EMBEDDING_DIMENSION_WOS,
+           # win=WINDOW_WOS,
+           # q=["1"],
+           # ep=[1],
+           # bs=[65536],
+        #),
+
+
+rule randomize_keeping_agegap_citation_network:
+    """generating a random citation newtork"""
+    input:
+        net=ALL_NETWORKS,
+        meta=META_DATA,
+    params:
+        Name="{network_name}",
+        Number="{number}",
+    output:
+        RANDOM_NETWORK,
+    shell:
+        "python3 scripts/Configuration_network.py {input.net} {input.meta} {output}"
+
+
+rule embedding_all_network:
+    """generating embedding vectors of citation newtork"""
+    input:
+        ALL_NETWORKS,
+    params:
+        Name="{network_name}",
+        Dsize="{dim}",
+        Window="{win}",
+        Device1="0",
+        Device2="1",
+        q="{q}",
+        epoch="{ep}",
+        batch="{bs}",
+        work_dir=DATA_DIR,
+    output:
+        expand(EMBEDDING_VECTORS, vec_type=VEC_TYPES),
+    shell:
+        "python3 scripts/Embedding.py {input} {params.Dsize} {params.Window} {params.Device1} {params.Device2} {params.Name} {params.q} {params.epoch} {params.batch} {params.work_dir}"
+
+
+rule calculating_distance:
+    """calculating distance based on the in-vectors and out-vectors"""
+    input:
+        invec=expand(EMBEDDING_VECTORS, vec_type="in"),
+        outvec=expand(EMBEDDING_VECTORS, vec_type="out"),
+        net=ALL_NETWORKS,
+    params:
+        Device="cuda:3",
+    output:
+        DISTANCE,
+    shell:
+        "python3 scripts/Distance_disruption.py distance {input.invec} {input.outvec} {input.net} {params.Device} None"
+
+
+rule calculating_disruption:
+    """generating embedding vectors of citation newtork"""
+    input:
+        net = ALL_NETWORKS,
+        ref = REF_DICT,
+        cit = CIT_DICT
+    output:
+        DISRUPTION,
+    resources:
+        gpu=1,
+    shell:
+        "python3 scripts/Distance_disruption.py disruption {input.ref} {input.cit} {input.net} None None"
+        
+        
+rule calculating_disruption_nok:
+    """generating embedding vectors of citation newtork"""
+    input:
+        net = ALL_NETWORKS,
+        ref = REF_DICT,
+        cit = CIT_DICT
+    output:
+        DISRUPTION_NOK,
+    resources:
+        gpu=1,
+    shell:
+        "python3 scripts/Distance_disruption.py disruption_nok {input.ref} {input.cit} {input.net} None None"
+
+
+
+rule calculating_disruption_mutistep:
+    """generating embedding vectors of citation newtork"""
+    input:
+        net = ALL_NETWORKS,
+        ref = REF_DICT,
+        cit = CIT_DICT
+    output:
+        DISRUPTION_MULTISTEP,
+    shell:
+        "python3 scripts/Distance_disruption.py multistep {input.ref} {input.cit} {input.net} None multistep"
+        
+        
+rule generate_ref_cit_dict:
+    """generating reference and citation dictionary"""
+    input:
+        ALL_NETWORKS,
+    output:
+        REF_DICT,
+        CIT_DICT
+    shell:
+        "python3 scripts/reference_citation_dict.py {input}"
+

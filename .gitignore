@@ -1,0 +1,14 @@
+# Network data
+*.npz
+
+# embedding vectors
+*.npy
+
+# python-related
+.ipynb_checkpoints/
+*.egg-info/
+*.pyc
+__pycache__/
+
+# snakemake
+.snakemake/

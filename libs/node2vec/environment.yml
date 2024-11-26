@@ -1,0 +1,27 @@
+name: node2vecs
+channels:
+  - pyg
+  - bioconda
+  - pytorch
+  - conda-forge
+  - pyg 
+  - defaults
+dependencies:
+  - python=3.9
+  - pytorch 
+  - graph-tool 
+  - scikit-learn 
+  - numpy 
+  - numba 
+  - scipy 
+  - pandas 
+  - networkx 
+  - gensim 
+  - umap-learn 
+  - faiss-gpu 
+  - umap-learn 
+  - faiss-gpu 
+  - pyg 
+  - pytorch 
+  - torchvision 
+  - torchaudio 
