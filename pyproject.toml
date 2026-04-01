@@ -1,0 +1,32 @@
+[project]
+name = "embedding-disruptiveness"
+version = "0.1.0"
+description = "Embedding disruptiveness measure for citation networks"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Munjung Kim", email = "munjkim@virginia.edu" },
+]
+license = { text = "MIT" }
+dependencies = [
+    "pandas",
+    "scipy",
+    "matplotlib",
+    "numpy",
+    "tqdm",
+    "statsmodels",
+    "torch",
+    "snakemake",
+    "snakefmt",
+    "ipykernel",
+]
+
+[tool.uv.sources]
+node2vecs = { path = "libs/node2vec", editable = true }
+utils = { path = "libs/util", editable = true }
+
+[dependency-groups]
+dev = [
+    "node2vecs",
+    "utils",
+]
